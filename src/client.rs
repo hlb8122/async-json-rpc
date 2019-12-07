@@ -52,6 +52,8 @@ pub struct HttpClient<C> {
 impl HttpClient<HyperClient<HttpConnector>> {
     /// Creates a new client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
+        // Check that if we have a password, we have a username; other way around is ok
+        debug_assert!(password.is_none() || user.is_some());
         HttpClient {
             url,
             user,
