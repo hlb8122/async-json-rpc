@@ -62,7 +62,9 @@ impl HttpClient<HyperClient<HttpConnector>> {
             nonce: AtomicUsize::new(0),
         }
     }
+}
 
+impl<C> HttpClient<C> {
     pub fn next_nonce(&self) -> usize {
         self.nonce.load(Ordering::AcqRel)
     }
