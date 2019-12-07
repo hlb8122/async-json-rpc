@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate serde;
 
-pub mod client;
+pub mod clients;
 pub mod objects;
-
-pub use client::HttpClient;
+pub mod prelude;

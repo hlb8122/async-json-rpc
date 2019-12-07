@@ -19,33 +19,14 @@ use tower_service::Service;
 
 use crate::objects::{Request, RequestBuilder, Response};
 
+use super::{Error, RequestFactory};
+
 pub type HttpTransport = HyperClient<HttpConnector>;
 pub type HttpsTransport = HyperClient<HttpsConnector<HttpConnector>>;
 pub type HttpError = Error<HyperError>;
 
-/// The error type for RPCs.
-#[derive(Debug)]
-pub enum Error<E> {
-    /// The batch response contained a duplicate ID.
-    BatchDuplicateResponseId(serde_json::Value),
-    /// A connection error occured.
-    Connection(E),
-    /// Batches can't be empty.
-    EmptyBatch,
-    /// An error occured during respnse JSON deserialization.
-    Json(serde_json::Error),
-    /// The response did not have the expected nonce.
-    NonceMismatch,
-    /// The response had a jsonrpc field other than "2.0".
-    VersionMismatch,
-    /// The batch response contained an ID that didn't correspond to any request ID.
-    WrongBatchResponseId(serde_json::Value),
-    /// Too many responses returned in batch.
-    WrongBatchResponseSize,
-}
-
 /// A handle to a remote HTTP JSONRPC server.
-pub struct HttpClient<C> {
+pub struct Client<C> {
     url: String,
     user: Option<String>,
     password: Option<String>,
@@ -53,12 +34,12 @@ pub struct HttpClient<C> {
     inner_client: C,
 }
 
-impl HttpClient<HttpTransport> {
+impl Client<HttpTransport> {
     /// Creates a new client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(password.is_none() || user.is_some());
-        HttpClient {
+        Client {
             url,
             user,
             password,
@@ -68,20 +49,20 @@ impl HttpClient<HttpTransport> {
     }
 }
 
-impl<C> HttpClient<C> {
+impl<C> Client<C> {
     pub fn next_nonce(&self) -> usize {
         self.nonce.load(Ordering::AcqRel)
     }
 }
 
-impl HttpClient<HttpsTransport> {
+impl Client<HttpsTransport> {
     /// Creates a new TLS client.
     pub fn new_tls(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(password.is_none() || user.is_some());
         let https = HttpsConnector::new();
         let inner_client = HyperClient::builder().build::<_, Body>(https);
-        HttpClient {
+        Client {
             url,
             user,
             password,
@@ -91,7 +72,7 @@ impl HttpClient<HttpsTransport> {
     }
 }
 
-impl<I> Service<Request> for HttpClient<I>
+impl<I> Service<Request> for Client<I>
 where
     I: Service<HttpRequest<Body>, Response = HttpResponse<Body>, Error = HyperError>,
     I::Future: 'static,
@@ -143,11 +124,7 @@ where
     }
 }
 
-pub trait RequestFactory {
-    fn build_request(&self) -> RequestBuilder;
-}
-
-impl<C> RequestFactory for HttpClient<C> {
+impl<C> RequestFactory for Client<C> {
     fn build_request(&self) -> RequestBuilder {
         let id = serde_json::Value::Number(self.nonce.fetch_add(1, Ordering::AcqRel).into());
         Request::build().id(id)
