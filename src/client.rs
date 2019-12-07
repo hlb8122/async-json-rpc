@@ -49,7 +49,9 @@ pub struct HttpClient<C> {
     inner_client: C,
 }
 
-impl HttpClient<HyperClient<HttpConnector>> {
+pub type HttpTransport = HyperClient<HttpConnector>;
+
+impl HttpClient<HttpTransport> {
     /// Creates a new client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
@@ -70,7 +72,9 @@ impl<C> HttpClient<C> {
     }
 }
 
-impl HttpClient<HyperClient<HttpsConnector<HttpConnector>>> {
+pub type HttpsTransport = HyperClient<HttpsConnector<HttpConnector>>;
+
+impl HttpClient<HttpsTransport> {
     /// Creates a new TLS client.
     pub fn new_tls(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
