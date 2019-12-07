@@ -19,6 +19,10 @@ use tower_service::Service;
 
 use crate::objects::{Request, RequestBuilder, Response};
 
+pub type HttpTransport = HyperClient<HttpConnector>;
+pub type HttpsTransport = HyperClient<HttpsConnector<HttpConnector>>;
+pub type HttpError = Error<HyperError>;
+
 /// The error type for RPCs.
 #[derive(Debug)]
 pub enum Error<E> {
@@ -49,8 +53,6 @@ pub struct HttpClient<C> {
     inner_client: C,
 }
 
-pub type HttpTransport = HyperClient<HttpConnector>;
-
 impl HttpClient<HttpTransport> {
     /// Creates a new client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
@@ -71,8 +73,6 @@ impl<C> HttpClient<C> {
         self.nonce.load(Ordering::AcqRel)
     }
 }
-
-pub type HttpsTransport = HyperClient<HttpsConnector<HttpConnector>>;
 
 impl HttpClient<HttpsTransport> {
     /// Creates a new TLS client.
