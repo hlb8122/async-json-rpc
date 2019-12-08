@@ -37,30 +37,33 @@ pub struct RequestBuilder {
 pub struct IncompleteRequest;
 
 impl RequestBuilder {
-    pub fn method(mut self, method: String) -> Self {
-        self.method = Some(method);
+    pub fn method<S: Into<String>>(mut self, method: S) -> Self {
+        self.method = Some(method.into());
         self
     }
 
-    pub fn id(mut self, id: serde_json::Value) -> Self {
-        self.id = Some(id);
+    pub fn id<I: Into<serde_json::Value>>(mut self, id: I) -> Self {
+        self.id = Some(id.into());
         self
     }
 
-    pub fn params(mut self, params: serde_json::Value) -> Self {
-        self.params = Some(params);
+    pub fn params<V: Into<serde_json::Value>>(mut self, params: V) -> Self {
+        self.params = Some(params.into());
         self
     }
 
-    pub fn jsonrpc(mut self, json_rpc: String) -> Self {
-        self.json_rpc = Some(json_rpc);
+    pub fn jsonrpc<S: Into<String>>(mut self, json_rpc: S) -> Self {
+        self.json_rpc = Some(json_rpc.into());
         self
     }
 
     pub fn finish(self) -> Result<Request, IncompleteRequest> {
-        if let (Some(id), Some(method), Some(params), Some(jsonrpc)) =
-            (self.id, self.method, self.params, self.json_rpc)
-        {
+        let jsonrpc = if let Some(jsonrpc) = self.json_rpc {
+            jsonrpc
+        } else {
+            "2.0".to_string()
+        };
+        if let (Some(id), Some(method), Some(params)) = (self.id, self.method, self.params) {
             Ok(Request {
                 id,
                 method,
