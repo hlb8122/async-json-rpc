@@ -34,6 +34,7 @@ pub struct RequestBuilder {
     json_rpc: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct IncompleteRequest;
 
 impl RequestBuilder {
