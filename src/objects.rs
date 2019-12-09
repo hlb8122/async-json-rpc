@@ -1,4 +1,4 @@
-use serde_json::Error as JsonError;
+pub use serde_json::Error as JsonError;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 /// A JSONRPC error object.
