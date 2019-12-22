@@ -11,9 +11,8 @@ use futures_core::{
     Future,
 };
 use futures_util::{stream::StreamExt, TryFutureExt};
-pub use hyper::client::HttpConnector;
+pub use hyper::client::{connect::Connect, HttpConnector};
 use hyper::{
-    client::connect::Connect,
     header::{AUTHORIZATION, CONTENT_TYPE},
     Body, Client as HyperClient, Error as HyperError,
 };
