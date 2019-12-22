@@ -11,17 +11,17 @@ use futures_core::{
     Future,
 };
 use futures_util::{stream::StreamExt, TryFutureExt};
+pub use hyper::client::HttpConnector;
 use hyper::{
-    client::{connect::Connect, HttpConnector},
+    client::connect::Connect,
     header::{AUTHORIZATION, CONTENT_TYPE},
     Body, Client as HyperClient, Error as HyperError,
 };
-use hyper_tls::HttpsConnector;
+pub use hyper_tls::HttpsConnector;
 use tower_service::Service;
 
-use crate::objects::{Request, RequestBuilder, Response};
-
 use super::{Error, RequestFactory};
+use crate::objects::{Request, RequestBuilder, Response};
 
 pub type HttpError = Error<HyperError>;
 
