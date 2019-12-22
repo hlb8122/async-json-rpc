@@ -1,6 +1,9 @@
 use std::{
     pin::Pin,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 use futures_core::{
@@ -9,10 +12,9 @@ use futures_core::{
 };
 use futures_util::{stream::StreamExt, TryFutureExt};
 use hyper::{
-    client::HttpConnector,
+    client::{connect::Connect, HttpConnector},
     header::{AUTHORIZATION, CONTENT_TYPE},
-    Body, Client as HyperClient, Error as HyperError, Request as HttpRequest,
-    Response as HttpResponse,
+    Body, Client as HyperClient, Error as HyperError,
 };
 use hyper_tls::HttpsConnector;
 use tower_service::Service;
@@ -21,30 +23,36 @@ use crate::objects::{Request, RequestBuilder, Response};
 
 use super::{Error, RequestFactory};
 
-pub type HttpTransport = HyperClient<HttpConnector>;
-pub type HttpsTransport = HyperClient<HttpsConnector<HttpConnector>>;
 pub type HttpError = Error<HyperError>;
 
-/// A handle to a remote HTTP JSONRPC server.
-pub struct Client<C> {
+pub struct Credentials {
     url: String,
     user: Option<String>,
     password: Option<String>,
-    nonce: AtomicUsize,
-    inner_client: C,
 }
 
-impl Client<HttpTransport> {
+/// A handle to a remote HTTP JSONRPC server.
+#[derive(Clone)]
+pub struct Client<C> {
+    credentials: Arc<Credentials>,
+    nonce: Arc<AtomicUsize>,
+    inner_client: HyperClient<C>,
+}
+
+impl Client<HttpConnector> {
     /// Creates a new client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(password.is_none() || user.is_some());
-        Client {
+        let credentials = Arc::new(Credentials {
             url,
             user,
             password,
+        });
+        Client {
+            credentials,
             inner_client: HyperClient::new(),
-            nonce: AtomicUsize::new(0),
+            nonce: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
@@ -55,27 +63,29 @@ impl<C> Client<C> {
     }
 }
 
-impl Client<HttpsTransport> {
+impl Client<HttpsConnector<HttpConnector>> {
     /// Creates a new TLS client.
     pub fn new_tls(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(password.is_none() || user.is_some());
         let https = HttpsConnector::new();
         let inner_client = HyperClient::builder().build::<_, Body>(https);
-        Client {
+        let credentials = Arc::new(Credentials {
             url,
             user,
             password,
+        });
+        Client {
+            credentials,
             inner_client,
-            nonce: AtomicUsize::new(0),
+            nonce: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
 
-impl<I> Service<Request> for Client<I>
+impl<C> Service<Request> for Client<C>
 where
-    I: Service<HttpRequest<Body>, Response = HttpResponse<Body>, Error = HyperError>,
-    I::Future: 'static,
+    C: Connect + Clone + Send + Sync + 'static,
 {
     type Response = Response;
     type Error = Error<HyperError>;
@@ -88,11 +98,11 @@ where
     fn call(&mut self, request: Request) -> Self::Future {
         let json_raw = serde_json::to_vec(&request).unwrap(); // This is safe
         let body = Body::from(json_raw);
-        let mut builder = hyper::Request::post(&self.url);
+        let mut builder = hyper::Request::post(&self.credentials.url);
 
         // Add authorization
-        if let Some(ref user) = self.user {
-            let pass_str = match &self.password {
+        if let Some(ref user) = self.credentials.user {
+            let pass_str = match &self.credentials.password {
                 Some(some) => some,
                 None => "",
             };
