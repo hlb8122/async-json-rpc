@@ -105,7 +105,7 @@ where
                 Some(some) => some,
                 None => "",
             };
-            builder = builder.header(AUTHORIZATION, format!("Basic {}:{}", user, pass_str))
+            builder = builder.header(AUTHORIZATION, base64::encode(&format!("Basic {}:{}", user, pass_str)))
         };
 
         // Add headers and body
