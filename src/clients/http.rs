@@ -105,7 +105,13 @@ where
                 Some(some) => some,
                 None => "",
             };
-            builder = builder.header(AUTHORIZATION, base64::encode(&format!("Basic {}:{}", user, pass_str)))
+            builder = builder.header(
+                AUTHORIZATION,
+                format!(
+                    "Basic {}",
+                    base64::encode(&format!("{}:{}", user, pass_str))
+                ),
+            )
         };
 
         // Add headers and body
@@ -135,7 +141,7 @@ where
 
 impl<C> Client<C>
 where
-C: Connect + Clone + Send + Sync + 'static,
+    C: Connect + Clone + Send + Sync + 'static,
 {
     pub async fn send(&self, request: Request) -> Result<Response, Error<HyperError>> {
         self.clone().call(request).await

@@ -80,7 +80,6 @@ impl RequestBuilder {
                     jsonrpc,
                 })
             }
-
         } else {
             Err(IncompleteRequest)
         }
