@@ -133,6 +133,15 @@ where
     }
 }
 
+impl<C> Client<C>
+where
+C: Connect + Clone + Send + Sync + 'static,
+{
+    pub async fn send(&self, request: Request) -> Result<Response, Error<HyperError>> {
+        self.clone().call(request).await
+    }
+}
+
 impl<C> RequestFactory for Client<C> {
     fn build_request(&self) -> RequestBuilder {
         let id = serde_json::Value::Number(self.nonce.fetch_add(1, Ordering::AcqRel).into());
