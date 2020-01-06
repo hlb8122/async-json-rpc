@@ -64,13 +64,23 @@ impl RequestBuilder {
         } else {
             "2.0".to_string()
         };
-        if let (Some(id), Some(method), Some(params)) = (self.id, self.method, self.params) {
-            Ok(Request {
-                id,
-                method,
-                params,
-                jsonrpc,
-            })
+        if let (Some(id), Some(method)) = (self.id, self.method) {
+            if let Some(params) = self.params {
+                Ok(Request {
+                    id,
+                    method,
+                    params,
+                    jsonrpc,
+                })
+            } else {
+                Ok(Request {
+                    id,
+                    method,
+                    params: serde_json::Value::Null,
+                    jsonrpc,
+                })
+            }
+
         } else {
             Err(IncompleteRequest)
         }
