@@ -1,5 +1,7 @@
 pub mod http;
 
+use std::fmt;
+
 pub trait RequestFactory {
     fn build_request(&self) -> crate::objects::RequestBuilder;
 }
@@ -23,4 +25,24 @@ pub enum Error<E> {
     WrongBatchResponseId(serde_json::Value),
     /// Too many responses returned in batch.
     WrongBatchResponseSize,
+}
+
+impl<E: fmt::Display> fmt::Display for Error<E> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match self {
+            Error::BatchDuplicateResponseId(err) => {
+                return write!(f, "duplicate batch response id, {}", err)
+            }
+            Error::Connection(err) => return err.fmt(f),
+            Error::EmptyBatch => "empty batch",
+            Error::Json(err) => return err.fmt(f),
+            Error::NonceMismatch => "nonce mismatch",
+            Error::VersionMismatch => "version mismatch",
+            Error::WrongBatchResponseId(err) => {
+                return write!(f, "wrong batch response id, {}", err)
+            }
+            Error::WrongBatchResponseSize => "wrong batch response size",
+        };
+        write!(f, "{}", printable)
+    }
 }
