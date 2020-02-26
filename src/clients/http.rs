@@ -24,6 +24,7 @@ use crate::objects::{Request, RequestBuilder, Response};
 
 pub type HttpError = Error<HyperError>;
 
+#[derive(Debug)]
 pub struct Credentials {
     url: String,
     user: Option<String>,
@@ -31,7 +32,7 @@ pub struct Credentials {
 }
 
 /// A handle to a remote HTTP JSONRPC server.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Client<C> {
     credentials: Arc<Credentials>,
     nonce: Arc<AtomicUsize>,
