@@ -89,7 +89,7 @@ where
 {
     type Response = Response;
     type Error = Error<HyperError>;
-    type Future = Pin<Box<dyn Future<Output = Result<Response, Self::Error>>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Response, Self::Error>> + 'static>>;
 
     fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
