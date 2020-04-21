@@ -126,14 +126,12 @@ where
             .inner_client
             .call(request)
             .map_err(Error::Connection)
-            .and_then(|mut response| {
-                async move {
-                    let mut body = Vec::new();
-                    while let Some(chunk) = response.body_mut().next().await {
-                        body.extend_from_slice(&chunk.map_err(Error::Connection)?);
-                    }
-                    Ok(serde_json::from_slice(&body).map_err(Error::Json)?)
+            .and_then(|mut response| async move {
+                let mut body = Vec::new();
+                while let Some(chunk) = response.body_mut().next().await {
+                    body.extend_from_slice(&chunk.map_err(Error::Connection)?);
                 }
+                Ok(serde_json::from_slice(&body).map_err(Error::Json)?)
             });
 
         Box::pin(fut)

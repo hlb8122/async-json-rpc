@@ -1,7 +1,7 @@
 pub use serde_json::Error as JsonError;
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
 /// A JSONRPC error object.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct RpcError {
     /// The integer identifier of the error.
     pub code: i32,
@@ -11,8 +11,8 @@ pub struct RpcError {
     pub data: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
 /// Represents the JSONRPC request object.
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Request {
     pub method: String,
     pub params: serde_json::Value,
@@ -86,8 +86,8 @@ impl RequestBuilder {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
 /// Represents the JSONRPC response object.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Response {
     pub result: Option<serde_json::Value>,
     pub error: Option<RpcError>,
