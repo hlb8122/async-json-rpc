@@ -3,6 +3,13 @@ name = "async-json-rpc"
 version = "0.1.0"
 authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
+license = "MIT"
+homepage = "https://github.com/hlb8122/async-json-rpc"
+repository = "https://github.com/hlb8122/async-json-rpc"
+keywords = ["json", "rpc", "async", "client", "asynchronous"]
+description = """
+A minimal asynchronous JSON-RPC client library built on the tower framework.
+"""
 
 [dependencies]
 base64 = "0.12.0"
