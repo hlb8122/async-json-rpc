@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 pub use serde_json::Error as JsonError;
 
-/// A JSONRPC error object.
+/// A JSON-RPC error object.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct RpcError {
     /// The integer identifier of the error.
@@ -11,7 +12,7 @@ pub struct RpcError {
     pub data: Option<serde_json::Value>,
 }
 
-/// Represents the JSONRPC request object.
+/// Represents the JSON-RPC request object.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Request {
     pub method: String,
@@ -86,7 +87,7 @@ impl RequestBuilder {
     }
 }
 
-/// Represents the JSONRPC response object.
+/// Represents the JSON-RPC response object.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Response {
     pub result: Option<serde_json::Value>,

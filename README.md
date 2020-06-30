@@ -1,1 +1,2 @@
-# async-json-rpc
+# Asynchronous JSON-RPC
+

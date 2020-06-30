@@ -10,36 +10,46 @@ use futures_core::{
     task::{Context, Poll},
     Future,
 };
-use futures_util::{stream::StreamExt, TryFutureExt};
+use futures_util::TryFutureExt;
 pub use hyper::client::{connect::Connect, HttpConnector};
 use hyper::{
+    body::to_bytes,
     header::{AUTHORIZATION, CONTENT_TYPE},
-    Body, Client as HyperClient, Error as HyperError,
+    Body, Client as HyperClient, Error as HyperError, Request as HttpRequest,
+    Response as HttpResponse,
 };
 pub use hyper_tls::HttpsConnector;
 use tower_service::Service;
+use tower_util::ServiceExt;
 
 use super::{Error, RequestFactory};
 use crate::objects::{Request, RequestBuilder, Response};
 
-pub type HttpError = Error<HyperError>;
+pub type HttpError = Error<ConnectionError<HyperError>>;
 
-#[derive(Debug)]
+/// Error specific to HTTP connections.
+pub enum ConnectionError<E> {
+    Poll(E),
+    Service(E),
+    Body(HyperError),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Credentials {
     url: String,
     user: Option<String>,
     password: Option<String>,
 }
 
-/// A handle to a remote HTTP JSONRPC server.
+/// A handle to a remote HTTP JSON-RPC server.
 #[derive(Clone, Debug)]
-pub struct Client<C> {
+pub struct Client<S> {
     credentials: Arc<Credentials>,
     nonce: Arc<AtomicUsize>,
-    inner_client: HyperClient<C>,
+    inner_service: S,
 }
 
-impl Client<HttpConnector> {
+impl Client<HyperClient<HttpConnector>> {
     /// Creates a new client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
@@ -51,25 +61,25 @@ impl Client<HttpConnector> {
         });
         Client {
             credentials,
-            inner_client: HyperClient::new(),
+            inner_service: HyperClient::new(),
             nonce: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
 
-impl<C> Client<C> {
+impl<S> Client<S> {
     pub fn next_nonce(&self) -> usize {
         self.nonce.load(Ordering::AcqRel)
     }
 }
 
-impl Client<HttpsConnector<HttpConnector>> {
+impl Client<HyperClient<HttpsConnector<HttpConnector>>> {
     /// Creates a new TLS client.
     pub fn new_tls(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(password.is_none() || user.is_some());
         let https = HttpsConnector::new();
-        let inner_client = HyperClient::builder().build::<_, Body>(https);
+        let inner_service = HyperClient::builder().build::<_, Body>(https);
         let credentials = Arc::new(Credentials {
             url,
             user,
@@ -77,22 +87,29 @@ impl Client<HttpsConnector<HttpConnector>> {
         });
         Client {
             credentials,
-            inner_client,
+            inner_service,
             nonce: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
 
-impl<C> Service<Request> for Client<C>
+type FutResponse<R, E> = Pin<Box<dyn Future<Output = Result<R, E>> + 'static + Send>>;
+
+impl<S> Service<Request> for Client<S>
 where
-    C: Connect + Clone + Send + Sync + 'static,
+    S: Service<HttpRequest<Body>, Response = HttpResponse<Body>>,
+    S::Error: 'static,
+    S::Future: Send + 'static,
 {
     type Response = Response;
-    type Error = Error<HyperError>;
-    type Future = Pin<Box<dyn Future<Output = Result<Response, Self::Error>> + 'static + Send>>;
+    type Error = Error<ConnectionError<S::Error>>;
+    type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner_service
+            .poll_ready(cx)
+            .map_err(ConnectionError::Poll)
+            .map_err(Error::Connection)
     }
 
     fn call(&mut self, request: Request) -> Self::Future {
@@ -123,14 +140,15 @@ where
 
         // Send request
         let fut = self
-            .inner_client
+            .inner_service
             .call(request)
+            .map_err(ConnectionError::Service)
             .map_err(Error::Connection)
-            .and_then(|mut response| async move {
-                let mut body = Vec::new();
-                while let Some(chunk) = response.body_mut().next().await {
-                    body.extend_from_slice(&chunk.map_err(Error::Connection)?);
-                }
+            .and_then(|response| async move {
+                let body = to_bytes(response.into_body())
+                    .await
+                    .map_err(ConnectionError::Body)
+                    .map_err(Error::Connection)?;
                 Ok(serde_json::from_slice(&body).map_err(Error::Json)?)
             });
 
@@ -138,12 +156,17 @@ where
     }
 }
 
-impl<C> Client<C>
+impl<S> Client<S>
 where
-    C: Connect + Clone + Send + Sync + 'static,
+    S: Service<HttpRequest<Body>, Response = HttpResponse<Body>> + Clone,
+    S::Error: 'static,
+    S::Future: Send + 'static,
 {
-    pub async fn send(&self, request: Request) -> Result<Response, Error<HyperError>> {
-        self.clone().call(request).await
+    pub async fn send(
+        &self,
+        request: Request,
+    ) -> Result<Response, Error<ConnectionError<S::Error>>> {
+        self.clone().oneshot(request).await
     }
 }
 
