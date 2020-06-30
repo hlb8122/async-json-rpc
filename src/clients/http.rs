@@ -1,4 +1,5 @@
 use std::{
+    error, fmt,
     pin::Pin,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -28,11 +29,24 @@ use crate::objects::{Request, RequestBuilder, Response};
 pub type HttpError = Error<ConnectionError<HyperError>>;
 
 /// Error specific to HTTP connections.
+#[derive(Debug)]
 pub enum ConnectionError<E> {
     Poll(E),
     Service(E),
     Body(HyperError),
 }
+
+impl<E: fmt::Display> fmt::Display for ConnectionError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Poll(err) => write!(f, "polling error, {}", err),
+            Self::Service(err) => write!(f, "service error, {}", err),
+            Self::Body(err) => write!(f, "body error, {}", err),
+        }
+    }
+}
+
+impl<E: fmt::Display + fmt::Debug> error::Error for ConnectionError<E> {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Credentials {

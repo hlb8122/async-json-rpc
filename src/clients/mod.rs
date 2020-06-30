@@ -1,6 +1,6 @@
 pub mod http;
 
-use std::fmt;
+use std::{error, fmt};
 
 pub trait RequestFactory {
     fn build_request(&self) -> crate::objects::RequestBuilder;
@@ -46,3 +46,5 @@ impl<E: fmt::Display> fmt::Display for Error<E> {
         write!(f, "{}", printable)
     }
 }
+
+impl<E: fmt::Display + fmt::Debug> error::Error for Error<E> {}
