@@ -64,6 +64,27 @@ pub struct Client<S> {
 }
 
 impl<S> Client<S> {
+    /// Creates a new HTTP client from a [`Service`].
+    ///
+    /// [`Service`]: tower::Service
+    pub fn from_service(
+        service: S,
+        url: String,
+        user: Option<String>,
+        password: Option<String>,
+    ) -> Self {
+        let credentials = Arc::new(Credentials {
+            url,
+            user,
+            password,
+        });
+        Client {
+            credentials,
+            inner_service: service,
+            nonce: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
     /// Increment nonce and return the last value.
     pub fn next_nonce(&self) -> usize {
         self.nonce.load(Ordering::AcqRel)
@@ -73,38 +94,16 @@ impl<S> Client<S> {
 impl Client<HyperClient<HttpConnector>> {
     /// Creates a new HTTP client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
-        // Check that if we have a password, we have a username; other way around is ok
-        debug_assert!(password.is_none() || user.is_some());
-        let credentials = Arc::new(Credentials {
-            url,
-            user,
-            password,
-        });
-        Client {
-            credentials,
-            inner_service: HyperClient::new(),
-            nonce: Arc::new(AtomicUsize::new(0)),
-        }
+        Self::from_service(HyperClient::new(), url, user, password)
     }
 }
 
 impl Client<HyperClient<HttpsConnector<HttpConnector>>> {
     /// Creates a new HTTPS client.
     pub fn new_tls(url: String, user: Option<String>, password: Option<String>) -> Self {
-        // Check that if we have a password, we have a username; other way around is ok
-        debug_assert!(password.is_none() || user.is_some());
         let https = HttpsConnector::new();
-        let inner_service = HyperClient::builder().build::<_, Body>(https);
-        let credentials = Arc::new(Credentials {
-            url,
-            user,
-            password,
-        });
-        Client {
-            credentials,
-            inner_service,
-            nonce: Arc::new(AtomicUsize::new(0)),
-        }
+        let service = HyperClient::builder().build::<_, Body>(https);
+        Self::from_service(service, url, user, password)
     }
 }
 
