@@ -63,6 +63,13 @@ pub struct Client<S> {
     inner_service: S,
 }
 
+impl<S> Client<S> {
+    /// Increment nonce and return the last value.
+    pub fn next_nonce(&self) -> usize {
+        self.nonce.load(Ordering::AcqRel)
+    }
+}
+
 impl Client<HyperClient<HttpConnector>> {
     /// Creates a new HTTP client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
@@ -78,13 +85,6 @@ impl Client<HyperClient<HttpConnector>> {
             inner_service: HyperClient::new(),
             nonce: Arc::new(AtomicUsize::new(0)),
         }
-    }
-}
-
-impl<S> Client<S> {
-    /// Increment nonce and return the last value.
-    pub fn next_nonce(&self) -> usize {
-        self.nonce.load(Ordering::AcqRel)
     }
 }
 
