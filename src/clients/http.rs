@@ -12,21 +12,21 @@ use futures_core::{
     Future,
 };
 use futures_util::TryFutureExt;
-pub use hyper::client::{connect::Connect, HttpConnector};
+use hyper::client::HttpConnector;
 use hyper::{
     body::to_bytes,
     header::{AUTHORIZATION, CONTENT_TYPE},
     Body, Client as HyperClient, Error as HyperError, Request as HttpRequest,
     Response as HttpResponse,
 };
-pub use hyper_tls::HttpsConnector;
+use hyper_tls::HttpsConnector;
 use tower_service::Service;
 use tower_util::ServiceExt;
 
 use super::{Error, RequestFactory};
 use crate::objects::{Request, RequestBuilder, Response};
 
-pub type HttpError = Error<ConnectionError<HyperError>>;
+pub type HttpError<E> = Error<ConnectionError<E>>;
 
 /// Error specific to HTTP connections.
 #[derive(Debug)]
@@ -64,7 +64,7 @@ pub struct Client<S> {
 }
 
 impl Client<HyperClient<HttpConnector>> {
-    /// Creates a new client.
+    /// Creates a new HTTP client.
     pub fn new(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(password.is_none() || user.is_some());
@@ -82,13 +82,14 @@ impl Client<HyperClient<HttpConnector>> {
 }
 
 impl<S> Client<S> {
+    /// Increment nonce and return the last value.
     pub fn next_nonce(&self) -> usize {
         self.nonce.load(Ordering::AcqRel)
     }
 }
 
 impl Client<HyperClient<HttpsConnector<HttpConnector>>> {
-    /// Creates a new TLS client.
+    /// Creates a new HTTPS client.
     pub fn new_tls(url: String, user: Option<String>, password: Option<String>) -> Self {
         // Check that if we have a password, we have a username; other way around is ok
         debug_assert!(password.is_none() || user.is_some());
@@ -185,6 +186,7 @@ where
 }
 
 impl<C> RequestFactory for Client<C> {
+    /// Build the request.
     fn build_request(&self) -> RequestBuilder {
         let id = serde_json::Value::Number(self.nonce.fetch_add(1, Ordering::AcqRel).into());
         Request::build().id(id)
