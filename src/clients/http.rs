@@ -19,7 +19,7 @@ use hyper::{
     Body, Client as HyperClient, Error as HyperError, Request as HttpRequest,
     Response as HttpResponse,
 };
-// use hyper_tls::HttpsConnector;
+use hyper_tls::HttpsConnector;
 use tower_service::Service;
 use tower_util::ServiceExt;
 
@@ -98,14 +98,14 @@ impl Client<HyperClient<HttpConnector>> {
     }
 }
 
-// impl Client<HyperClient<HttpsConnector<HttpConnector>>> {
-//     /// Creates a new HTTPS client.
-//     pub fn new_tls(url: String, user: Option<String>, password: Option<String>) -> Self {
-//         let https = HttpsConnector::new();
-//         let service = HyperClient::builder().build::<_, Body>(https);
-//         Self::from_service(service, url, user, password)
-//     }
-// }
+impl Client<HyperClient<HttpsConnector<HttpConnector>>> {
+    /// Creates a new HTTPS client.
+    pub fn new_tls(url: String, user: Option<String>, password: Option<String>) -> Self {
+        let https = HttpsConnector::new();
+        let service = HyperClient::builder().build::<_, Body>(https);
+        Self::from_service(service, url, user, password)
+    }
+}
 
 type FutResponse<R, E> = Pin<Box<dyn Future<Output = Result<R, E>> + 'static + Send>>;
 
